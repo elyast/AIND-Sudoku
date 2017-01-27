@@ -3,11 +3,17 @@
 
 # Question 1 (Naked Twins)
 Q: How do we use constraint propagation to solve the naked twins problem?  
-A: *Student should provide answer here*
+A: In order to find naked twins I iterated over units (column, row, etc) and first pick the box values that are of size 2.
+In order to find actual twins I build reverse dictionary to find boxes with identical values 
+(dictionary maps box value -> set of box keys, e.g. '23':{}, '45':{'A1', 'A2'})
+Next we need to remove those duplicated values (digit by digit) from boxes in the same unit other than the boxes we found (naked twins).
+
 
 # Question 2 (Diagonal Sudoku)
 Q: How do we use constraint propagation to solve the diagonal sudoku problem?  
-A: *Student should provide answer here*
+A: I noticed that diagonal sudoku problem really adds 2 more units, 2 diagonals to be exact to the unit list.
+I generated those using list comprehension, and added them to unitlist.
+Rest of the solution works in the same way there is no change to the code.
 
 ### Install
 

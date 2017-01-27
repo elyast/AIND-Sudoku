@@ -1,5 +1,9 @@
 assignments = []
 
+rows = 'ABCDEFGHI'
+cols = '123456789'
+
+
 def assign_value(values, box, value):
     """
     Please use this function to update your values dictionary!
@@ -10,6 +14,7 @@ def assign_value(values, box, value):
         assignments.append(values.copy())
     return values
 
+
 def naked_twins(values):
     """Eliminate values using the naked twins strategy.
     Args:
@@ -18,13 +23,50 @@ def naked_twins(values):
     Returns:
         the values dictionary with the naked twins eliminated from peers.
     """
+    for unit in unitlist:
+        unit_values = {box: values[box] for box in unit if len(values[box]) == 2}
+        duplicated_key_sets = find_duplicated_keys(unit_values)
+        if len(duplicated_key_sets) == 1:
+            duplicated_keys = duplicated_key_sets[0]
+            duplicated_value = values[list(duplicated_keys)[0]]
+            values = remove_naked_twins_from_peers(values, unit, duplicated_keys, duplicated_value)
 
+    return values
     # Find all instances of naked twins
     # Eliminate the naked twins as possibilities for their peers
 
-def cross(A, B):
-    "Cross product of elements in A and elements in B."
-    pass
+
+def remove_naked_twins_from_peers(values, unit, duplicated_keys, duplicated_value):
+    """Remove naked twins (duplicated_keys) from unit (cols/rows/etc) replacing digits from duplicated value"""
+    for box in unit:
+        if box not in duplicated_keys:
+            for digit in duplicated_value:
+                values = assign_value(values, box, values[box].replace(digit, ''))
+    return values
+
+
+def find_duplicated_keys(values):
+    """Find boxes with duplicated value"""
+    rev_multidict = {}
+    for key, value in values.items():
+        rev_multidict.setdefault(value, set()).add(key)
+    return [values for key, values in rev_multidict.items() if len(values) > 1]
+
+
+def cross(a, b):
+    """Cross product of elements in A and elements in B."""
+    return [s+t for s in a for t in b]
+
+boxes = cross(rows, cols)
+
+row_units = [cross(r, cols) for r in rows]
+column_units = [cross(rows, c) for c in cols]
+square_units = [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')]
+diagonal_units = [[rows[i] + cols[i] for i in range(len(rows))], [rows[i] + cols[len(cols) - 1 - i] for i in range(len(rows))]]
+unitlist = row_units + column_units + square_units + diagonal_units
+units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
+peers = dict((s, set(sum(units[s], [])) - {s}) for s in boxes)
+
 
 def grid_values(grid):
     """
@@ -36,7 +78,16 @@ def grid_values(grid):
             Keys: The boxes, e.g., 'A1'
             Values: The value in each box, e.g., '8'. If the box has no value, then the value will be '123456789'.
     """
-    pass
+    chars = []
+    digits = '123456789'
+    for c in grid:
+        if c in digits:
+            chars.append(c)
+        if c == '.':
+            chars.append(digits)
+    assert len(chars) == 81
+    return dict(zip(boxes, chars))
+
 
 def display(values):
     """
@@ -44,19 +95,65 @@ def display(values):
     Args:
         values(dict): The sudoku in dictionary form
     """
-    pass
+    width = 1 + max(len(values[s]) for s in boxes)
+    line = '+'.join(['-'*(width*3)]*3)
+    for r in rows:
+        print(''.join(values[r+c].center(width)+('|' if c in '36' else '')
+                      for c in cols))
+        if r in 'CF': print(line)
+    print
+
 
 def eliminate(values):
-    pass
+    solved_values = [box for box in values.keys() if len(values[box]) == 1]
+    for box in solved_values:
+        digit = values[box]
+        for peer in peers[box]:
+            values = assign_value(values, peer, values[peer].replace(digit, ''))
+    return values
+
 
 def only_choice(values):
-    pass
+    for unit in unitlist:
+        for digit in '123456789':
+            dplaces = [box for box in unit if digit in values[box]]
+            if len(dplaces) == 1:
+                values = assign_value(values, dplaces[0], digit)
+    return values
+
 
 def reduce_puzzle(values):
-    pass
+    stalled = False
+    while not stalled:
+        solved_values_before = len([box for box in values.keys() if len(values[box]) == 1])
+        values = eliminate(values)
+        values = only_choice(values)
+        values = naked_twins(values)
+        solved_values_after = len([box for box in values.keys() if len(values[box]) == 1])
+        stalled = solved_values_before == solved_values_after
+        if len([box for box in values.keys() if len(values[box]) == 0]):
+            return False
+    return values
+
 
 def search(values):
-    pass
+    """Using depth-first search and propagation, try all possible values."""
+    # First, reduce the puzzle using the previous function
+    values = reduce_puzzle(values)
+    if values is False:
+        return False
+    if all(len(values[s]) == 1 for s in boxes):
+        return values
+    # Chose one of the unfilled square s with the fewest possibilities
+    n, s = min((len(values[s]), s) for s in boxes if len(values[s]) > 1)
+    # Now use recurrence to solve each one of the resulting sudokus, and
+    for value in values[s]:
+        new_sudoku = values.copy()
+        new_sudoku = assign_value(new_sudoku, s, value)
+        attempt = search(new_sudoku)
+        if attempt:
+            return attempt
+
 
 def solve(grid):
     """
@@ -67,6 +164,8 @@ def solve(grid):
     Returns:
         The dictionary representation of the final sudoku grid. False if no solution exists.
     """
+    values = grid_values(grid)
+    return search(values)
 
 if __name__ == '__main__':
     diag_sudoku_grid = '2.............62....1....7...6..8...3...9...7...6..4...4....8....52.............3'
